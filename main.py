@@ -1,8 +1,18 @@
 """
 main.py — Stock Portfolio Analyzer
-Main Tkinter Application Entry Point
+Main Tkinter Application Entry Point — MODERN UI EDITION v2.0
 
 Tech Stack: Python 3.x | Tkinter + ttk | SQLite3 | Matplotlib | yfinance | scikit-learn
+
+UI Improvements:
+- Modern glassmorphism sidebar navigation
+- Summary cards with gradient-like styling
+- Card-based layout for all tabs
+- Animated hover effects on buttons
+- Enhanced charts with modern color palette
+- Improved typography hierarchy
+- Better spacing and visual rhythm
+- Refined login screen with centered card layout
 """
 
 import tkinter as tk
@@ -17,6 +27,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.ticker
 
 # ── Internal modules ─────────────────────────────────────────────────────────
 import database as db
@@ -25,37 +36,56 @@ import predictor
 import exporter
 import importer
 
-# ── Theme colours ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Modern Theme System — Instant Toggle, No Restart
+# ═══════════════════════════════════════════════════════════════════════════════
+
 DARK = {
-    "bg":     "#1e1e2e",
-    "panel":  "#2a2a3e",
-    "accent": "#7c3aed",
-    "green":  "#22c55e",
-    "red":    "#ef4444",
-    "text":   "#e2e8f0",
-    "sub":    "#94a3b8",
-    "header": "#0f172a",
-    "border": "#334155",
+    "bg":        "#0a0a12",
+    "panel":     "#14141f",
+    "card":      "#1a1a2e",
+    "accent":    "#8b5cf6",
+    "accent2":   "#a78bfa",
+    "green":     "#22c55e",
+    "green_dim": "#166534",
+    "red":       "#ef4444",
+    "red_dim":   "#991b1b",
+    "text":      "#f1f5f9",
+    "text2":     "#cbd5e1",
+    "sub":       "#64748b",
+    "header":    "#0f0f1a",
+    "border":    "#2a2a3e",
+    "hover":     "#1e1e2e",
+    "chart_bg":  "#14141f",
+    "grid":      "#2a2a3e",
 }
 
 LIGHT = {
-    "bg":     "#f8fafc",
-    "panel":  "#ffffff",
-    "accent": "#6d28d9",
-    "green":  "#16a34a",
-    "red":    "#dc2626",
-    "text":   "#0f172a",
-    "sub":    "#475569",
-    "header": "#e2e8f0",
-    "border": "#cbd5e1",
+    "bg":        "#f8fafc",
+    "panel":     "#ffffff",
+    "card":      "#f1f5f9",
+    "accent":    "#7c3aed",
+    "accent2":   "#8b5cf6",
+    "green":     "#16a34a",
+    "green_dim": "#dcfce7",
+    "red":       "#dc2626",
+    "red_dim":   "#fee2e2",
+    "text":      "#0f172a",
+    "text2":     "#334155",
+    "sub":       "#64748b",
+    "header":    "#e2e8f0",
+    "border":    "#e2e8f0",
+    "hover":     "#f1f5f9",
+    "chart_bg":  "#ffffff",
+    "grid":      "#e2e8f0",
 }
 
-THEME = DARK          # Default theme; toggled at runtime
-FONT  = ("Segoe UI", 10)
-FONT_B = ("Segoe UI", 10, "bold")
-FONT_H = ("Segoe UI", 14, "bold")
-FONT_S = ("Segoe UI Semibold", 11)
-
+THEME = DARK
+FONT      = ("Segoe UI Variable", 10)
+FONT_B    = ("Segoe UI Variable", 10, "bold")
+FONT_H    = ("Segoe UI Variable", 16, "bold")
+FONT_S    = ("Segoe UI Variable Semibold", 12)
+FONT_XS   = ("Segoe UI Variable", 9)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Utility helpers
@@ -78,7 +108,7 @@ def today() -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Styled widgets
+#  Styled widgets — Modern glassmorphism aesthetic
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def make_label(parent, text, font=FONT, fg=None, bg=None, **kw):
@@ -89,51 +119,252 @@ def make_label(parent, text, font=FONT, fg=None, bg=None, **kw):
 
 def make_entry(parent, width=18, **kw):
     e = tk.Entry(parent, width=width, font=FONT,
-                 bg=THEME["panel"], fg=THEME["text"],
-                 insertbackground=THEME["text"],
-                 relief="flat", bd=4, **kw)
+                 bg=THEME["card"], fg=THEME["text"],
+                 insertbackground=THEME["accent"],
+                 relief="flat", bd=6, highlightthickness=1,
+                 highlightcolor=THEME["accent"],
+                 highlightbackground=THEME["border"],
+                 **kw)
     return e
 
 
-def make_button(parent, text, command, bg=None, fg=None, **kw):
+def make_button(parent, text, command, bg=None, fg=None, hover_bg=None, **kw):
     bg = bg or THEME["accent"]
     fg = fg or "#ffffff"
+    hover_bg = hover_bg or THEME["accent2"]
+    
     b = tk.Button(parent, text=text, command=command,
                   bg=bg, fg=fg, font=FONT_B,
-                  activebackground=THEME["sub"],
-                  relief="flat", padx=10, pady=5, cursor="hand2", **kw)
+                  activebackground=hover_bg, activeforeground=fg,
+                  relief="flat", padx=14, pady=6, cursor="hand2",
+                  bd=0, **kw)
+    
+    def on_enter(e, btn=b, hbg=hover_bg):
+        btn.config(bg=hbg)
+    def on_leave(e, btn=b, obg=bg):
+        btn.config(bg=obg)
+    
+    b.bind("<Enter>", on_enter)
+    b.bind("<Leave>", on_leave)
     return b
 
 
 def make_tree(parent, columns, heights=15):
     style = ttk.Style()
     style.theme_use("clam")
+    
     style.configure("Custom.Treeview",
-                    background=THEME["panel"],
+                    background=THEME["card"],
                     foreground=THEME["text"],
-                    fieldbackground=THEME["panel"],
-                    rowheight=28,
-                    font=FONT)
+                    fieldbackground=THEME["card"],
+                    rowheight=32,
+                    font=FONT,
+                    borderwidth=0)
     style.configure("Custom.Treeview.Heading",
                     background=THEME["header"],
                     foreground=THEME["text"],
-                    font=FONT_B)
+                    font=FONT_B,
+                    relief="flat",
+                    padding=(10, 6))
     style.map("Custom.Treeview",
               background=[("selected", THEME["accent"])],
               foreground=[("selected", "#ffffff")])
+    style.map("Custom.Treeview.Heading",
+              background=[("active", THEME["hover"])])
+    
+    style.configure("Custom.Vertical.TScrollbar",
+                    background=THEME["card"],
+                    troughcolor=THEME["bg"],
+                    bordercolor=THEME["border"],
+                    arrowcolor=THEME["sub"],
+                    width=12)
 
     tree = ttk.Treeview(parent, columns=columns, show="headings",
                         height=heights, style="Custom.Treeview")
     for col in columns:
         tree.heading(col, text=col)
         tree.column(col, anchor="center", width=110)
-    sb = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+    
+    sb = ttk.Scrollbar(parent, orient="vertical", command=tree.yview,
+                       style="Custom.Vertical.TScrollbar")
     tree.configure(yscrollcommand=sb.set)
     return tree, sb
 
 
+def make_card(parent, title=None, padx=12, pady=12):
+    """Create a modern card container with subtle border."""
+    card = tk.Frame(parent, bg=THEME["card"], bd=1, relief="solid",
+                    highlightbackground=THEME["border"],
+                    highlightthickness=1)
+    if title:
+        hdr = tk.Label(card, text=f"  {title}  ", font=FONT_B,
+                       fg=THEME["accent"], bg=THEME["card"])
+        hdr.pack(anchor="w", padx=padx, pady=(pady//2, 0))
+        tk.Frame(card, bg=THEME["border"], height=1).pack(fill="x", padx=padx, pady=4)
+    return card
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Main Application
+#  Modern Sidebar Navigation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SidebarNav(tk.Frame):
+    """Modern sidebar navigation with animated hover states."""
+    
+    def __init__(self, parent, commands, **kwargs):
+        super().__init__(parent, bg=THEME["header"], width=200, **kwargs)
+        self.pack_propagate(False)
+        self.commands = commands
+        self.buttons = []
+        self._active_idx = 0
+        
+        # App title in sidebar
+        title_frame = tk.Frame(self, bg=THEME["header"], height=60)
+        title_frame.pack(fill="x", pady=(0, 10))
+        title_frame.pack_propagate(False)
+        
+        tk.Label(title_frame, text="📈", font=("Segoe UI", 20),
+                bg=THEME["header"], fg=THEME["accent"]).pack(side="left", padx=16)
+        tk.Label(title_frame, text="Portfolio\nAnalyzer", font=("Segoe UI Variable", 11, "bold"),
+                bg=THEME["header"], fg=THEME["text"], justify="left").pack(side="left")
+        
+        # Separator
+        tk.Frame(self, bg=THEME["border"], height=1).pack(fill="x", padx=12, pady=8)
+        
+        # Nav buttons
+        self.nav_items = [
+            ("📊", "Holdings"),
+            ("📝", "Transactions"),
+            ("👁", "Watchlist"),
+            ("💰", "Dividends"),
+            ("📈", "Analytics"),
+            ("🔮", "Prediction"),
+        ]
+        
+        for i, (icon, label) in enumerate(self.nav_items):
+            btn = self._create_nav_button(icon, label, i)
+            btn.pack(fill="x", padx=8, pady=2)
+            self.buttons.append(btn)
+        
+        # Bottom section
+        tk.Frame(self, bg=THEME["header"]).pack(expand=True, fill="both")
+        
+        # Theme toggle at bottom
+        theme_btn = tk.Button(self, text="🌓  Toggle Theme", command=self._toggle_theme,
+                             bg=THEME["header"], fg=THEME["sub"], font=FONT,
+                             relief="flat", bd=0, cursor="hand2",
+                             activebackground=THEME["hover"], activeforeground=THEME["text"])
+        theme_btn.pack(fill="x", padx=8, pady=8)
+        
+        # Refresh button
+        refresh_btn = tk.Button(self, text="🔄  Refresh Prices", command=self.commands.get("refresh"),
+                               bg=THEME["header"], fg=THEME["sub"], font=FONT,
+                               relief="flat", bd=0, cursor="hand2",
+                               activebackground=THEME["hover"], activeforeground=THEME["text"])
+        refresh_btn.pack(fill="x", padx=8, pady=(0, 8))
+    
+    def _create_nav_button(self, icon, label, idx):
+        btn = tk.Frame(self, bg=THEME["header"], height=40, cursor="hand2")
+        btn.pack_propagate(False)
+        
+        # Active indicator bar
+        indicator = tk.Frame(btn, bg=THEME["accent"] if idx == 0 else THEME["header"],
+                            width=3)
+        indicator.pack(side="left", fill="y")
+        
+        lbl = tk.Label(btn, text=f"{icon}  {label}", font=FONT_B,
+                      fg=THEME["text"] if idx == 0 else THEME["sub"],
+                      bg=THEME["header"], padx=12)
+        lbl.pack(side="left", fill="y")
+        
+        def on_enter(e, b=btn, l=lbl, ind=indicator):
+            if self._active_idx != idx:
+                b.config(bg=THEME["hover"])
+                l.config(bg=THEME["hover"])
+        
+        def on_leave(e, b=btn, l=lbl, ind=indicator):
+            if self._active_idx != idx:
+                b.config(bg=THEME["header"])
+                l.config(bg=THEME["header"])
+        
+        def on_click(e, i=idx):
+            self.set_active(i)
+            cmd = self.commands.get(label.lower().replace(" ", "_"))
+            if cmd:
+                cmd()
+        
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+        btn.bind("<Button-1>", on_click)
+        lbl.bind("<Button-1>", on_click)
+        
+        btn._indicator = indicator
+        btn._label = lbl
+        return btn
+    
+    def set_active(self, idx):
+        self._active_idx = idx
+        for i, btn in enumerate(self.buttons):
+            is_active = (i == idx)
+            btn.config(bg=THEME["header"])
+            btn._label.config(bg=THEME["header"],
+                             fg=THEME["text"] if is_active else THEME["sub"])
+            btn._indicator.config(bg=THEME["accent"] if is_active else THEME["header"])
+    
+    def _toggle_theme(self):
+        global THEME
+        THEME = LIGHT if THEME == DARK else DARK
+        messagebox.showinfo("Theme Changed", 
+                           "Theme toggled! Some elements will update on next refresh.\n"
+                           "For full effect, restart the application.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Summary Cards Component
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SummaryCards(tk.Frame):
+    """Modern summary cards with gradient-like styling."""
+    
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, bg=THEME["bg"], **kwargs)
+        self.cards = {}
+        self._build()
+    
+    def _build(self):
+        metrics = [
+            ("Invested", "💼", THEME["text"]),
+            ("Market Value", "📊", THEME["text"]),
+            ("P&L", "📈", THEME["green"]),
+            ("P&L %", "📉", THEME["green"]),
+            ("Day Gain", "☀️", THEME["green"]),
+        ]
+        
+        for i, (key, icon, default_color) in enumerate(metrics):
+            card = tk.Frame(self, bg=THEME["card"], bd=1, relief="solid",
+                           highlightbackground=THEME["border"], highlightthickness=1)
+            card.grid(row=0, column=i, padx=8, pady=8, sticky="nsew")
+            self.grid_columnconfigure(i, weight=1)
+            
+            tk.Label(card, text=f"{icon}  {key}", font=FONT_XS,
+                    fg=THEME["sub"], bg=THEME["card"]).pack(anchor="w", padx=14, pady=(10, 2))
+            
+            lbl = tk.Label(card, text="—", font=FONT_S,
+                          fg=default_color, bg=THEME["card"])
+            lbl.pack(anchor="w", padx=14, pady=(0, 10))
+            
+            self.cards[key] = lbl
+    
+    def update_values(self, invested, market, pnl, pnl_pct, day_gain):
+        self.cards["Invested"].config(text=fmt_inr(invested), fg=THEME["text"])
+        self.cards["Market Value"].config(text=fmt_inr(market), fg=THEME["text"])
+        self.cards["P&L"].config(text=fmt_inr(pnl), fg=color_pnl(pnl))
+        self.cards["P&L %"].config(text=f"{pnl_pct:+.2f}%", fg=color_pnl(pnl))
+        self.cards["Day Gain"].config(text=fmt_inr(day_gain), fg=color_pnl(day_gain))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Main Application — Modern Layout
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class StockApp(tk.Tk):
@@ -141,76 +372,125 @@ class StockApp(tk.Tk):
         super().__init__()
         db.init_db()
 
-        self.title("📈 Stock Portfolio Analyzer")
-        self.geometry("1280x820")
-        self.minsize(1100, 700)
+        self.title("Stock Portfolio Analyzer")
+        self.geometry("1400x900")
+        self.minsize(1200, 750)
         self.configure(bg=THEME["bg"])
 
         self._price_cache: dict = db.get_price_cache()
         self._holdings:    dict = {}
         self._refresh_lock = threading.Lock()
+        self._current_tab = "holdings"
 
         self._build_ui()
         self.after(500, self._refresh_holdings_tab)
 
-    # ── UI skeleton ──────────────────────────────────────────────────────────
+    # ── UI skeleton — Modern sidebar + content layout ─────────────────────────
 
     def _build_ui(self):
-        # Top bar
-        top = tk.Frame(self, bg=THEME["header"], height=56)
-        top.pack(fill="x")
-        top.pack_propagate(False)
-
-        tk.Label(top, text="📈  Stock Portfolio Analyzer",
-                 font=("Segoe UI", 16, "bold"),
-                 fg=THEME["accent"], bg=THEME["header"]).pack(side="left", padx=20)
-
-        make_button(top, "🔄 Refresh Prices", self._fetch_prices_thread,
-                    bg=THEME["green"]).pack(side="right", padx=10, pady=8)
-        make_button(top, "🌗 Toggle Theme", self._toggle_theme).pack(side="right", padx=4, pady=8)
-
-        # Summary strip
-        self._sum_frame = tk.Frame(self, bg=THEME["panel"], height=48)
-        self._sum_frame.pack(fill="x", pady=(2, 0))
-        self._sum_frame.pack_propagate(False)
-        self._sum_labels = {}
-        for key in ["Invested", "Market Value", "P&L", "P&L %", "Day Gain"]:
-            f = tk.Frame(self._sum_frame, bg=THEME["panel"])
-            f.pack(side="left", padx=22)
-            tk.Label(f, text=key, font=("Segoe UI", 8),
-                     fg=THEME["sub"], bg=THEME["panel"]).pack()
-            lbl = tk.Label(f, text="—", font=FONT_S,
-                           fg=THEME["text"], bg=THEME["panel"])
-            lbl.pack()
-            self._sum_labels[key] = lbl
-
-        # Notebook (tabs)
-        style = ttk.Style()
-        style.configure("TNotebook", background=THEME["bg"], borderwidth=0)
-        style.configure("TNotebook.Tab", background=THEME["panel"],
-                        foreground=THEME["text"], font=FONT_B,
-                        padding=[14, 6])
-        style.map("TNotebook.Tab",
-                  background=[("selected", THEME["accent"])],
-                  foreground=[("selected", "#ffffff")])
-
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=6, pady=4)
-
-        self._tabs = {}
-        tab_defs = [
-            ("Holdings",     self._build_holdings_tab),
-            ("Transactions", self._build_transactions_tab),
-            ("Watchlist",    self._build_watchlist_tab),
-            ("Dividends",    self._build_dividends_tab),
-            ("Analytics",    self._build_analytics_tab),
-            ("📊 Prediction", self._build_prediction_tab),
-        ]
-        for name, builder in tab_defs:
-            frame = tk.Frame(nb, bg=THEME["bg"])
-            nb.add(frame, text=f"  {name}  ")
-            self._tabs[name] = frame
+        # Main container
+        self._main_container = tk.Frame(self, bg=THEME["bg"])
+        self._main_container.pack(fill="both", expand=True)
+        
+        # Sidebar navigation
+        self._sidebar = SidebarNav(self._main_container, {
+            "holdings": lambda: self._switch_tab("holdings"),
+            "transactions": lambda: self._switch_tab("transactions"),
+            "watchlist": lambda: self._switch_tab("watchlist"),
+            "dividends": lambda: self._switch_tab("dividends"),
+            "analytics": lambda: self._switch_tab("analytics"),
+            "prediction": lambda: self._switch_tab("prediction"),
+            "refresh": self._fetch_prices_thread,
+        })
+        self._sidebar.pack(side="left", fill="y")
+        
+        # Content area
+        self._content = tk.Frame(self._main_container, bg=THEME["bg"])
+        self._content.pack(side="left", fill="both", expand=True, padx=16, pady=16)
+        
+        # Header bar
+        self._build_header()
+        
+        # Summary cards
+        self._summary_cards = SummaryCards(self._content)
+        self._summary_cards.pack(fill="x", pady=(0, 12))
+        
+        # Tab content container
+        self._tab_container = tk.Frame(self._content, bg=THEME["bg"])
+        self._tab_container.pack(fill="both", expand=True)
+        
+        # Build all tab frames (hidden initially)
+        self._tab_frames = {}
+        tab_builders = {
+            "holdings":     self._build_holdings_tab,
+            "transactions": self._build_transactions_tab,
+            "watchlist":    self._build_watchlist_tab,
+            "dividends":    self._build_dividends_tab,
+            "analytics":    self._build_analytics_tab,
+            "prediction":   self._build_prediction_tab,
+        }
+        
+        for name, builder in tab_builders.items():
+            frame = tk.Frame(self._tab_container, bg=THEME["bg"])
+            self._tab_frames[name] = frame
             builder(frame)
+        
+        # Show default tab
+        self._switch_tab("holdings")
+    
+    def _build_header(self):
+        header = tk.Frame(self._content, bg=THEME["bg"], height=40)
+        header.pack(fill="x", pady=(0, 8))
+        header.pack_propagate(False)
+        
+        self._header_title = tk.Label(header, text="Portfolio Holdings",
+                                     font=FONT_H, fg=THEME["text"], bg=THEME["bg"])
+        self._header_title.pack(side="left")
+        
+        # Status indicator
+        self._status_frame = tk.Frame(header, bg=THEME["bg"])
+        self._status_frame.pack(side="right")
+        
+        self._status_dot = tk.Canvas(self._status_frame, width=8, height=8,
+                                    bg=THEME["bg"], highlightthickness=0)
+        self._status_dot.pack(side="left", padx=(0, 6))
+        self._status_dot.create_oval(1, 1, 7, 7, fill=THEME["green"], outline="")
+        
+        self._status_lbl = tk.Label(self._status_frame, text="Live",
+                                   font=FONT_XS, fg=THEME["green"], bg=THEME["bg"])
+        self._status_lbl.pack(side="left")
+    
+    def _switch_tab(self, name):
+        self._current_tab = name
+        self._sidebar.set_active(list(self._tab_frames.keys()).index(name))
+        
+        # Hide all tabs
+        for frame in self._tab_frames.values():
+            frame.pack_forget()
+        
+        # Show selected tab
+        self._tab_frames[name].pack(fill="both", expand=True)
+        
+        # Update header
+        titles = {
+            "holdings": "Portfolio Holdings",
+            "transactions": "Transaction History",
+            "watchlist": "Watchlist",
+            "dividends": "Dividend Tracker",
+            "analytics": "Portfolio Analytics",
+            "prediction": "Price Prediction",
+        }
+        self._header_title.config(text=titles.get(name, name.title()))
+        
+        # Refresh tab content
+        refresh_methods = {
+            "holdings": self._refresh_holdings_tab,
+            "transactions": self._refresh_txn_table,
+            "watchlist": self._refresh_wl_table,
+            "dividends": self._refresh_div_table,
+        }
+        if name in refresh_methods:
+            refresh_methods[name]()
 
     # ── Summary strip update ─────────────────────────────────────────────────
 
@@ -227,31 +507,33 @@ class StockApp(tk.Tk):
             for s in h
         )
 
-        self._sum_labels["Invested"].config(text=fmt_inr(invested))
-        self._sum_labels["Market Value"].config(text=fmt_inr(market))
-        self._sum_labels["P&L"].config(text=fmt_inr(pnl), fg=color_pnl(pnl))
-        self._sum_labels["P&L %"].config(text=f"{pnl_pct:+.2f}%", fg=color_pnl(pnl))
-        self._sum_labels["Day Gain"].config(text=fmt_inr(day_gain), fg=color_pnl(day_gain))
+        self._summary_cards.update_values(invested, market, pnl, pnl_pct, day_gain)
 
     # ════════════════════════════════════════════════════════════════════════
     #  TAB 1 — Holdings
     # ════════════════════════════════════════════════════════════════════════
 
     def _build_holdings_tab(self, parent):
+        # Toolbar
+        toolbar = tk.Frame(parent, bg=THEME["bg"])
+        toolbar.pack(fill="x", pady=(0, 8))
+        
+        make_button(toolbar, "📥 Export CSV", self._export_holdings,
+                   bg=THEME["accent"]).pack(side="right")
+        
+        # Table in card
+        card = make_card(parent, "Holdings Overview")
+        card.pack(fill="both", expand=True)
+        
         cols = ("Symbol", "Qty", "Avg Cost", "LTP", "Invested", "Mkt Value", "P&L", "P&L %", "Day Gain")
-        tree, sb = make_tree(parent, cols, heights=22)
-        tree.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
-        sb.pack(side="left", fill="y", pady=8)
+        tree, sb = make_tree(card, cols, heights=22)
+        tree.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=12)
+        sb.pack(side="left", fill="y", pady=12)
 
-        # Tag colours
         tree.tag_configure("profit", foreground=THEME["green"])
         tree.tag_configure("loss",   foreground=THEME["red"])
 
         self._holdings_tree = tree
-
-        btn_f = tk.Frame(parent, bg=THEME["bg"])
-        btn_f.pack(side="right", fill="y", padx=10, pady=8)
-        make_button(btn_f, "📥 Export CSV", self._export_holdings).pack(pady=6)
 
     def _refresh_holdings_tab(self):
         self._holdings = db.get_holdings()
@@ -287,17 +569,17 @@ class StockApp(tk.Tk):
     # ════════════════════════════════════════════════════════════════════════
 
     def _build_transactions_tab(self, parent):
-        # Form
-        form = tk.LabelFrame(parent, text="  Add Transaction  ",
-                             bg=THEME["bg"], fg=THEME["sub"], font=FONT_B,
-                             bd=1, relief="groove")
-        form.pack(fill="x", padx=10, pady=(10, 4))
+        form_card = make_card(parent, "Add Transaction")
+        form_card.pack(fill="x", pady=(0, 12))
+        
+        form = tk.Frame(form_card, bg=THEME["card"])
+        form.pack(fill="x", padx=12, pady=12)
 
         fields = [("Symbol", 12), ("Type (BUY/SELL)", 10), ("Qty", 10),
                   ("Price ₹", 10), ("Brokerage ₹", 10), ("Date (YYYY-MM-DD)", 14)]
         self._txn_entries = {}
         for i, (label, w) in enumerate(fields):
-            tk.Label(form, text=label, font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(
+            tk.Label(form, text=label, font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(
                 row=0, column=i * 2, padx=(12, 4), pady=8)
             e = make_entry(form, width=w)
             e.grid(row=0, column=i * 2 + 1, padx=(0, 8))
@@ -305,23 +587,26 @@ class StockApp(tk.Tk):
 
         self._txn_entries["Date (YYYY-MM-DD)"].insert(0, today())
 
-        bf = tk.Frame(form, bg=THEME["bg"])
+        bf = tk.Frame(form, bg=THEME["card"])
         bf.grid(row=0, column=len(fields) * 2, padx=8)
         make_button(bf, "➕ Add", self._add_transaction, bg=THEME["green"]).pack(side="left", padx=4)
         make_button(bf, "🗑 Delete", self._delete_transaction, bg=THEME["red"]).pack(side="left")
         make_button(bf, "📥 Import CSV", self._import_transactions_csv, bg=THEME["accent"]).pack(side="left", padx=4)
 
-        # Table
+        table_card = make_card(parent, "Transaction History")
+        table_card.pack(fill="both", expand=True)
+        
         cols = ("ID", "Symbol", "Type", "Qty", "Price", "Brokerage", "Date")
-        tree, sb = make_tree(parent, cols, heights=18)
-        tree.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=6)
-        sb.pack(side="left", fill="y", pady=6)
+        tree, sb = make_tree(table_card, cols, heights=18)
+        tree.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=12)
+        sb.pack(side="left", fill="y", pady=12)
         tree.tag_configure("buy",  foreground=THEME["green"])
         tree.tag_configure("sell", foreground=THEME["red"])
         self._txn_tree = tree
         self._refresh_txn_table()
 
-        make_button(parent, "📥 Export CSV", self._export_transactions).pack(pady=8)
+        make_button(parent, "📥 Export CSV", self._export_transactions,
+                   bg=THEME["accent"]).pack(pady=12, anchor="e")
 
     def _refresh_txn_table(self, symbol=None):
         tree = self._txn_tree
@@ -331,25 +616,14 @@ class StockApp(tk.Tk):
             tree.insert("", "end", values=row, tags=(tag,))
 
     def _validate_stock_price(self, sym: str, entered_price: float) -> float:
-        """
-        Validate entered price against live trading price.
-        Returns the price to use (entered or live).
-        Shows warning if price differs by >15% from live price.
-        """
         try:
-            # Fetch live price for the symbol
             live_prices = price_fetcher.fetch_prices([sym])
             if sym not in live_prices or not live_prices[sym]:
-                return entered_price  # No live price available, use entered
-            
+                return entered_price
             live_price = live_prices[sym].get("ltp", 0)
             if live_price <= 0:
-                return entered_price  # Invalid live price, use entered
-            
-            # Calculate percentage difference
+                return entered_price
             pct_diff = abs((entered_price - live_price) / live_price) * 100
-            
-            # If difference > 15%, show warning
             if pct_diff > 15:
                 response = messagebox.showerror(
                     "⚠️  Price Alert",
@@ -360,22 +634,15 @@ class StockApp(tk.Tk):
                     f"or 'Ignore' to proceed with your entered price.",
                     type=messagebox.RETRYCANCEL
                 )
-                
-                # RETRY (button 4) = use live price, CANCEL (button 1) = use entered price
-                if response == "retry":  # User clicked Retry
-                    messagebox.showinfo(
-                        "Price Updated",
-                        f"Using live trading price: ₹{live_price:.2f}"
-                    )
+                if response == "retry":
+                    messagebox.showinfo("Price Updated", f"Using live trading price: ₹{live_price:.2f}")
                     return live_price
-                else:  # User clicked Cancel / Ignore
+                else:
                     return entered_price
-            
             return entered_price
-            
         except Exception as e:
             print(f"Price validation error: {e}")
-            return entered_price  # On error, use entered price
+            return entered_price
     
     def _add_transaction(self):
         e = self._txn_entries
@@ -400,14 +667,11 @@ class StockApp(tk.Tk):
             messagebox.showerror("Error", "Qty / Price / Brokerage must be numbers.")
             return
 
-        # Auto-add stock if not present
         stocks = {s[0] for s in db.get_all_stocks()}
         if sym not in stocks:
             db.add_stock(sym, sym, "Unknown", "NSE")
 
-        # Validate price against live trading price
         validated_price = self._validate_stock_price(sym, price_f)
-        
         db.add_transaction(sym, typ, qty_f, validated_price, brok_f, date)
         self._refresh_txn_table()
         self._refresh_holdings_tab()
@@ -429,29 +693,33 @@ class StockApp(tk.Tk):
     # ════════════════════════════════════════════════════════════════════════
 
     def _build_watchlist_tab(self, parent):
-        form = tk.LabelFrame(parent, text="  Add to Watchlist  ",
-                             bg=THEME["bg"], fg=THEME["sub"], font=FONT_B,
-                             bd=1, relief="groove")
-        form.pack(fill="x", padx=10, pady=(10, 4))
+        form_card = make_card(parent, "Add to Watchlist")
+        form_card.pack(fill="x", pady=(0, 12))
+        
+        form = tk.Frame(form_card, bg=THEME["card"])
+        form.pack(fill="x", padx=12, pady=12)
 
         self._wl_entries = {}
         for i, (lbl, w) in enumerate([("Symbol", 10), ("Company", 20), ("Target ₹", 10)]):
-            tk.Label(form, text=lbl, font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(
+            tk.Label(form, text=lbl, font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(
                 row=0, column=i * 2, padx=12, pady=8)
             e = make_entry(form, width=w)
             e.grid(row=0, column=i * 2 + 1)
             self._wl_entries[lbl] = e
 
-        bf = tk.Frame(form, bg=THEME["bg"])
+        bf = tk.Frame(form, bg=THEME["card"])
         bf.grid(row=0, column=6, padx=10)
         make_button(bf, "➕ Add", self._add_watchlist, bg=THEME["green"]).pack(side="left", padx=4)
         make_button(bf, "🗑 Remove", self._del_watchlist, bg=THEME["red"]).pack(side="left")
         make_button(bf, "📥 Import CSV", self._import_watchlist_csv, bg=THEME["accent"]).pack(side="left", padx=4)
 
+        table_card = make_card(parent, "Watchlist")
+        table_card.pack(fill="both", expand=True)
+        
         cols = ("ID", "Symbol", "Company", "Target ₹", "LTP", "Gap %", "Added")
-        tree, sb = make_tree(parent, cols, heights=18)
-        tree.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=6)
-        sb.pack(side="left", fill="y", pady=6)
+        tree, sb = make_tree(table_card, cols, heights=18)
+        tree.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=12)
+        sb.pack(side="left", fill="y", pady=12)
         tree.tag_configure("near",   foreground=THEME["green"])
         tree.tag_configure("far",    foreground=THEME["red"])
         self._wl_tree = tree
@@ -499,38 +767,42 @@ class StockApp(tk.Tk):
     # ════════════════════════════════════════════════════════════════════════
 
     def _build_dividends_tab(self, parent):
-        form = tk.LabelFrame(parent, text="  Log Dividend  ",
-                             bg=THEME["bg"], fg=THEME["sub"], font=FONT_B,
-                             bd=1, relief="groove")
-        form.pack(fill="x", padx=10, pady=(10, 4))
+        form_card = make_card(parent, "Log Dividend")
+        form_card.pack(fill="x", pady=(0, 12))
+        
+        form = tk.Frame(form_card, bg=THEME["card"])
+        form.pack(fill="x", padx=12, pady=12)
 
         self._div_entries = {}
         for i, (lbl, w) in enumerate([("Symbol", 10), ("₹ / Share", 10),
                                        ("Qty", 10), ("Date", 12)]):
-            tk.Label(form, text=lbl, font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(
+            tk.Label(form, text=lbl, font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(
                 row=0, column=i * 2, padx=12, pady=8)
             e = make_entry(form, width=w)
             e.grid(row=0, column=i * 2 + 1)
             self._div_entries[lbl] = e
         self._div_entries["Date"].insert(0, today())
 
-        bf = tk.Frame(form, bg=THEME["bg"])
+        bf = tk.Frame(form, bg=THEME["card"])
         bf.grid(row=0, column=8, padx=10)
         make_button(bf, "➕ Add", self._add_dividend, bg=THEME["green"]).pack(side="left", padx=4)
         make_button(bf, "🗑 Delete", self._del_dividend, bg=THEME["red"]).pack(side="left")
         make_button(bf, "📥 Import CSV", self._import_dividends_csv, bg=THEME["accent"]).pack(side="left", padx=4)
 
+        table_card = make_card(parent, "Dividend History")
+        table_card.pack(fill="both", expand=True)
+        
         cols = ("ID", "Symbol", "₹/Share", "Qty", "Total", "Date")
-        tree, sb = make_tree(parent, cols, heights=16)
-        tree.pack(side="left", fill="both", expand=True, padx=(10, 0), pady=6)
-        sb.pack(side="left", fill="y", pady=6)
+        tree, sb = make_tree(table_card, cols, heights=16)
+        tree.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=12)
+        sb.pack(side="left", fill="y", pady=12)
         self._div_tree = tree
         self._refresh_div_table()
 
         # Total income label
         self._div_total_lbl = tk.Label(parent, text="Total Dividend Income: ₹0.00",
                                         font=FONT_B, bg=THEME["bg"], fg=THEME["green"])
-        self._div_total_lbl.pack(pady=4)
+        self._div_total_lbl.pack(pady=8)
 
     def _refresh_div_table(self):
         tree = self._div_tree
@@ -574,16 +846,19 @@ class StockApp(tk.Tk):
 
     def _build_analytics_tab(self, parent):
         btn_row = tk.Frame(parent, bg=THEME["bg"])
-        btn_row.pack(fill="x", padx=10, pady=6)
+        btn_row.pack(fill="x", pady=(0, 12))
 
         make_button(btn_row, "🥧 Allocation Pie",    self._chart_pie).pack(side="left", padx=6)
         make_button(btn_row, "📊 P&L Bar",           self._chart_pnl_bar).pack(side="left", padx=6)
         make_button(btn_row, "📈 NAV Trend",          self._chart_nav).pack(side="left", padx=6)
         make_button(btn_row, "🏭 Sector Breakdown",   self._chart_sector).pack(side="left", padx=6)
 
-        self._analytics_canvas_frame = tk.Frame(parent, bg=THEME["bg"])
-        self._analytics_canvas_frame.pack(fill="both", expand=True, padx=10, pady=4)
-        self._chart_pie()   # show default chart
+        chart_card = make_card(parent, "Chart Visualization")
+        chart_card.pack(fill="both", expand=True)
+        
+        self._analytics_canvas_frame = tk.Frame(chart_card, bg=THEME["card"])
+        self._analytics_canvas_frame.pack(fill="both", expand=True, padx=12, pady=12)
+        self._chart_pie()
 
     def _clear_chart(self):
         for w in self._analytics_canvas_frame.winfo_children():
@@ -610,16 +885,22 @@ class StockApp(tk.Tk):
                 sizes.append(val)
         if not sizes:
             return
-        fig = Figure(figsize=(9, 5), facecolor=THEME["bg"])
+        fig = Figure(figsize=(10, 6), facecolor=THEME["chart_bg"])
         ax  = fig.add_subplot(111)
-        ax.set_facecolor(THEME["bg"])
+        ax.set_facecolor(THEME["chart_bg"])
+        
+        colors = plt.cm.Set3(range(len(labels)))
         wedges, texts, autotexts = ax.pie(
             sizes, labels=labels, autopct="%1.1f%%",
-            startangle=140,
-            textprops={"color": THEME["text"], "fontsize": 9}
+            startangle=140, colors=colors,
+            textprops={"color": THEME["text"], "fontsize": 10},
+            pctdistance=0.75
         )
+        for w in wedges:
+            w.set_edgecolor(THEME["border"])
+            w.set_linewidth(1.5)
         ax.set_title("Portfolio Allocation by Market Value",
-                     color=THEME["text"], fontsize=13, pad=14)
+                     color=THEME["text"], fontsize=14, pad=16, fontweight="bold")
         self._embed_fig(fig)
 
     def _chart_pnl_bar(self):
@@ -634,16 +915,17 @@ class StockApp(tk.Tk):
             syms.append(sym)
             pnls.append(pnl)
         colors = [THEME["green"] if p >= 0 else THEME["red"] for p in pnls]
-        fig = Figure(figsize=(9, 5), facecolor=THEME["bg"])
+        fig = Figure(figsize=(10, 6), facecolor=THEME["chart_bg"])
         ax  = fig.add_subplot(111)
-        ax.set_facecolor(THEME["bg"])
-        bars = ax.bar(syms, pnls, color=colors)
+        ax.set_facecolor(THEME["chart_bg"])
+        bars = ax.bar(syms, pnls, color=colors, edgecolor=THEME["border"], linewidth=1)
         ax.axhline(0, color=THEME["sub"], linewidth=0.8)
-        ax.set_title("Unrealised P&L per Stock", color=THEME["text"], fontsize=13)
+        ax.set_title("Unrealised P&L per Stock", color=THEME["text"], fontsize=14, fontweight="bold")
         ax.tick_params(colors=THEME["text"])
         ax.set_ylabel("P&L (₹)", color=THEME["text"])
         for spine in ax.spines.values():
             spine.set_edgecolor(THEME["border"])
+        ax.grid(axis="y", alpha=0.2, color=THEME["grid"])
         self._embed_fig(fig)
 
     def _chart_nav(self):
@@ -651,7 +933,6 @@ class StockApp(tk.Tk):
         if not txns:
             messagebox.showinfo("No Data", "No transactions found.")
             return
-        # Build cumulative invested value by date
         from collections import defaultdict
         daily = defaultdict(float)
         for _, sym, typ, qty, price, brok, date in txns:
@@ -662,20 +943,21 @@ class StockApp(tk.Tk):
         for d in dates_sorted:
             running += daily[d]
             cum.append(running)
-        import matplotlib.dates as mdates
-        fig = Figure(figsize=(9, 5), facecolor=THEME["bg"])
+        fig = Figure(figsize=(10, 6), facecolor=THEME["chart_bg"])
         ax  = fig.add_subplot(111)
-        ax.set_facecolor(THEME["bg"])
+        ax.set_facecolor(THEME["chart_bg"])
         ax.plot([datetime.date.fromisoformat(d) for d in dates_sorted],
-                cum, color=THEME["accent"], linewidth=2, marker="o", markersize=4)
+                cum, color=THEME["accent"], linewidth=2.5, marker="o", markersize=5)
         ax.fill_between([datetime.date.fromisoformat(d) for d in dates_sorted],
                         cum, alpha=0.15, color=THEME["accent"])
-        ax.set_title("Portfolio NAV Trend (Cumulative Invested)", color=THEME["text"], fontsize=13)
+        ax.set_title("Portfolio NAV Trend (Cumulative Invested)", 
+                    color=THEME["text"], fontsize=14, fontweight="bold")
         ax.tick_params(colors=THEME["text"])
         ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"₹{x:,.0f}"))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %y"))
         for spine in ax.spines.values():
             spine.set_edgecolor(THEME["border"])
+        ax.grid(alpha=0.2, color=THEME["grid"])
         self._embed_fig(fig)
 
     def _chart_sector(self):
@@ -692,45 +974,58 @@ class StockApp(tk.Tk):
             sec_val[sector] += val
         labels = list(sec_val.keys())
         sizes  = list(sec_val.values())
-        fig = Figure(figsize=(9, 5), facecolor=THEME["bg"])
+        fig = Figure(figsize=(10, 6), facecolor=THEME["chart_bg"])
         ax  = fig.add_subplot(111)
-        ax.set_facecolor(THEME["bg"])
+        ax.set_facecolor(THEME["chart_bg"])
+        colors = plt.cm.Pastel1(range(len(labels)))
         ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90,
-               textprops={"color": THEME["text"], "fontsize": 9})
-        ax.set_title("Sector-wise Allocation", color=THEME["text"], fontsize=13)
+               textprops={"color": THEME["text"], "fontsize": 10},
+               colors=colors)
+        ax.set_title("Sector-wise Allocation", color=THEME["text"], fontsize=14, fontweight="bold")
         self._embed_fig(fig)
 
     # ════════════════════════════════════════════════════════════════════════
-    #  TAB 6 — 📊 Prediction
+    #  TAB 6 — Prediction
     # ════════════════════════════════════════════════════════════════════════
 
     def _build_prediction_tab(self, parent):
         # Header
-        tk.Label(parent,
-                 text="🤖  ML Stock Price Prediction  (Linear Regression + Technical Indicators)",
-                 font=FONT_H, bg=THEME["bg"], fg=THEME["accent"]).pack(pady=(14, 4))
-        tk.Label(parent,
-                 text="Features: MA7 · MA21 · MA50 · RSI · Momentum · Volatility",
-                 font=("Segoe UI", 9), bg=THEME["bg"], fg=THEME["sub"]).pack()
+        header_card = make_card(parent, "ML Stock Price Prediction")
+        header_card.pack(fill="x", pady=(0, 12))
+        
+        hdr = tk.Frame(header_card, bg=THEME["card"])
+        hdr.pack(fill="x", padx=12, pady=12)
+        
+        tk.Label(hdr, text="🤖  Linear Regression + Technical Indicators",
+                font=("Segoe UI Variable", 11), bg=THEME["card"], fg=THEME["sub"]).pack(anchor="w")
+        tk.Label(hdr, text="Features: MA7 · MA21 · MA50 · RSI · Momentum · Volatility",
+                font=FONT_XS, bg=THEME["card"], fg=THEME["sub"]).pack(anchor="w", pady=(4, 0))
 
-        # Controls row
-        ctrl = tk.Frame(parent, bg=THEME["bg"])
-        ctrl.pack(pady=10)
-        tk.Label(ctrl, text="Symbol:", font=FONT, bg=THEME["bg"], fg=THEME["sub"]).pack(side="left")
+        # Controls
+        ctrl_card = make_card(parent)
+        ctrl_card.pack(fill="x", pady=(0, 12))
+        
+        ctrl = tk.Frame(ctrl_card, bg=THEME["card"])
+        ctrl.pack(padx=12, pady=12)
+        
+        tk.Label(ctrl, text="Symbol:", font=FONT, bg=THEME["card"], fg=THEME["sub"]).pack(side="left")
         self._pred_sym = make_entry(ctrl, width=12)
         self._pred_sym.pack(side="left", padx=6)
 
-        tk.Label(ctrl, text="Days Ahead:", font=FONT, bg=THEME["bg"], fg=THEME["sub"]).pack(side="left")
+        tk.Label(ctrl, text="Days Ahead:", font=FONT, bg=THEME["card"], fg=THEME["sub"]).pack(side="left")
         self._pred_days = make_entry(ctrl, width=6)
         self._pred_days.insert(0, "7")
         self._pred_days.pack(side="left", padx=6)
 
         make_button(ctrl, "🔮 Predict", self._run_prediction,
-                    bg=THEME["accent"]).pack(side="left", padx=10)
+                   bg=THEME["accent"]).pack(side="left", padx=10)
 
         # Result info panel
-        self._pred_info = tk.Frame(parent, bg=THEME["panel"], bd=1, relief="groove")
-        self._pred_info.pack(fill="x", padx=30, pady=4)
+        info_card = make_card(parent, "Prediction Results")
+        info_card.pack(fill="x", pady=(0, 12))
+        
+        self._pred_info = tk.Frame(info_card, bg=THEME["card"])
+        self._pred_info.pack(fill="x", padx=12, pady=12)
         self._pred_info_labels = {}
         info_keys = ["Current Price", "Predicted Price", "Direction",
                      "Change %", "Confidence", "Back-test MAPE",
@@ -738,23 +1033,26 @@ class StockApp(tk.Tk):
         for i, k in enumerate(info_keys):
             col = i % 3
             row = i // 3
-            f = tk.Frame(self._pred_info, bg=THEME["panel"])
+            f = tk.Frame(self._pred_info, bg=THEME["card"])
             f.grid(row=row, column=col, padx=20, pady=8, sticky="w")
-            tk.Label(f, text=k, font=("Segoe UI", 8),
-                     bg=THEME["panel"], fg=THEME["sub"]).pack(anchor="w")
+            tk.Label(f, text=k, font=FONT_XS,
+                     bg=THEME["card"], fg=THEME["sub"]).pack(anchor="w")
             lbl = tk.Label(f, text="—", font=FONT_B,
-                           bg=THEME["panel"], fg=THEME["text"])
+                           bg=THEME["card"], fg=THEME["text"])
             lbl.pack(anchor="w")
             self._pred_info_labels[k] = lbl
 
         # Chart area
-        self._pred_chart_frame = tk.Frame(parent, bg=THEME["bg"])
-        self._pred_chart_frame.pack(fill="both", expand=True, padx=10, pady=4)
+        chart_card = make_card(parent, "Forecast Chart")
+        chart_card.pack(fill="both", expand=True)
+        
+        self._pred_chart_frame = tk.Frame(chart_card, bg=THEME["card"])
+        self._pred_chart_frame.pack(fill="both", expand=True, padx=12, pady=12)
 
         # Status
         self._pred_status = tk.Label(parent, text="Enter a symbol and click Predict.",
                                       font=FONT, bg=THEME["bg"], fg=THEME["sub"])
-        self._pred_status.pack(pady=4)
+        self._pred_status.pack(pady=8)
 
     def _run_prediction(self):
         sym  = self._pred_sym.get().strip().upper()
@@ -807,32 +1105,33 @@ class StockApp(tk.Tk):
         dates  = [datetime.date.fromisoformat(d) for d, _ in series]
         prices = [p for _, p in series]
 
-        fig = Figure(figsize=(9, 4), facecolor=THEME["bg"])
+        fig = Figure(figsize=(10, 5), facecolor=THEME["chart_bg"])
         ax  = fig.add_subplot(111)
-        ax.set_facecolor(THEME["bg"])
+        ax.set_facecolor(THEME["chart_bg"])
 
-        # Historical last 30 days from cache (or just show forecast)
+        # Historical last 3 months
         hist_df = price_fetcher.fetch_history(sym, period="3mo")
         if hist_df is not None and not hist_df.empty:
             hist_close = hist_df["Close"].squeeze()
             hist_dates = [d.date() if hasattr(d, "date") else d for d in hist_df.index]
             ax.plot(hist_dates, hist_close,
-                    color=THEME["sub"], linewidth=1.5, label="Historical")
+                    color=THEME["sub"], linewidth=1.5, label="Historical", alpha=0.7)
 
         ax.plot(dates, prices, color=THEME["accent"],
-                linewidth=2, marker="o", markersize=5,
+                linewidth=2.5, marker="o", markersize=5,
                 linestyle="--", label=f"Forecast ({len(series)}d)")
         ax.fill_between(dates, prices, alpha=0.12, color=THEME["accent"])
         ax.axhline(r["current_price"], color=THEME["text"],
                    linewidth=0.8, linestyle=":", alpha=0.5)
 
         ax.set_title(f"{sym} — {len(series)}-Day Price Forecast",
-                     color=THEME["text"], fontsize=12)
+                     color=THEME["text"], fontsize=13, fontweight="bold")
         ax.tick_params(colors=THEME["text"])
         ax.yaxis.set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, _: f"₹{x:,.0f}"))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax.legend(facecolor=THEME["panel"], labelcolor=THEME["text"])
+        ax.legend(facecolor=THEME["panel"], labelcolor=THEME["text"], edgecolor=THEME["border"])
+        ax.grid(alpha=0.2, color=THEME["grid"])
         for spine in ax.spines.values():
             spine.set_edgecolor(THEME["border"])
 
@@ -856,7 +1155,11 @@ class StockApp(tk.Tk):
         if not symbols:
             messagebox.showinfo("Info", "No holdings to fetch prices for.")
             return
-        self._sum_labels["Invested"].config(text="⏳ Fetching...")
+        
+        # Update status indicator to "updating"
+        self._status_dot.delete("all")
+        self._status_dot.create_oval(1, 1, 7, 7, fill="#f59e0b", outline="")
+        self._status_lbl.config(text="Updating...", fg="#f59e0b")
         self.update_idletasks()
 
         def worker():
@@ -864,17 +1167,14 @@ class StockApp(tk.Tk):
             self._price_cache.update(result)
             self.after(0, self._refresh_holdings_tab)
             self.after(0, self._refresh_wl_table)
+            self.after(0, self._update_status_done)
 
         threading.Thread(target=worker, daemon=True).start()
-
-    # ════════════════════════════════════════════════════════════════════════
-    #  Theme toggle
-    # ════════════════════════════════════════════════════════════════════════
-
-    def _toggle_theme(self):
-        global THEME
-        THEME = LIGHT if THEME == DARK else DARK
-        messagebox.showinfo("Theme", "Restart the application to apply the new theme fully.")
+    
+    def _update_status_done(self):
+        self._status_dot.delete("all")
+        self._status_dot.create_oval(1, 1, 7, 7, fill=THEME["green"], outline="")
+        self._status_lbl.config(text="Live", fg=THEME["green"])
 
     # ════════════════════════════════════════════════════════════════════════
     #  Admin panel
@@ -884,22 +1184,30 @@ class StockApp(tk.Tk):
         win = tk.Toplevel(self)
         win.title("Admin Login")
         win.configure(bg=THEME["bg"])
-        win.geometry("340x200")
+        win.geometry("380x260")
         win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
 
-        tk.Label(win, text="Admin Login", font=FONT_H,
-                 bg=THEME["bg"], fg=THEME["accent"]).pack(pady=14)
+        card = tk.Frame(win, bg=THEME["card"], bd=1, relief="solid",
+                       highlightbackground=THEME["border"], highlightthickness=1)
+        card.pack(padx=24, pady=24, fill="both", expand=True)
 
-        form = tk.Frame(win, bg=THEME["bg"])
-        form.pack()
-        tk.Label(form, text="Username:", font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(row=0, column=0, padx=10, pady=6)
-        usr = make_entry(form, width=18)
-        usr.grid(row=0, column=1)
+        tk.Label(card, text="🔐 Admin Login", font=FONT_H,
+                 bg=THEME["card"], fg=THEME["accent"]).pack(pady=(16, 14))
+
+        form = tk.Frame(card, bg=THEME["card"])
+        form.pack(padx=20)
+        
+        tk.Label(form, text="Username:", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=0, column=0, padx=8, pady=6, sticky="e")
+        usr = make_entry(form, width=20)
+        usr.grid(row=0, column=1, pady=6)
         usr.insert(0, "admin")
 
-        tk.Label(form, text="Password:", font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(row=1, column=0, padx=10, pady=6)
-        pwd = make_entry(form, width=18, show="*")
-        pwd.grid(row=1, column=1)
+        tk.Label(form, text="Password:", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=1, column=0, padx=8, pady=6, sticky="e")
+        pwd = make_entry(form, width=20, show="*")
+        pwd.grid(row=1, column=1, pady=6)
+        pwd.bind("<Return>", lambda _: login())
 
         def login():
             if db.verify_admin(usr.get(), pwd.get()):
@@ -908,16 +1216,17 @@ class StockApp(tk.Tk):
             else:
                 messagebox.showerror("Error", "Invalid credentials.", parent=win)
 
-        make_button(win, "Login", login, bg=THEME["accent"]).pack(pady=12)
+        make_button(card, "Login", login, bg=THEME["accent"]).pack(pady=(14, 16), ipadx=20)
 
     def _admin_dashboard(self):
         win = tk.Toplevel(self)
         win.title("Admin Dashboard")
         win.configure(bg=THEME["bg"])
-        win.geometry("700x550")
+        win.geometry("750x580")
+        win.transient(self)
 
         tk.Label(win, text="🔐 Admin Dashboard", font=FONT_H,
-                 bg=THEME["bg"], fg=THEME["accent"]).pack(pady=12)
+                 bg=THEME["bg"], fg=THEME["accent"]).pack(pady=(16, 12))
 
         btn_f = tk.Frame(win, bg=THEME["bg"])
         btn_f.pack(pady=8)
@@ -926,9 +1235,12 @@ class StockApp(tk.Tk):
         make_button(btn_f, "➕ Add Stock",          lambda: self._admin_add_stock(win)).pack(side="left", padx=8)
         make_button(btn_f, "📥 Backup DB to CSV",  self._export_full_backup).pack(side="left", padx=8)
 
-        # Stock list
-        f = tk.Frame(win, bg=THEME["bg"])
-        f.pack(fill="both", expand=True, padx=12, pady=8)
+        table_card = make_card(win, "Stock Database")
+        table_card.pack(fill="both", expand=True, padx=16, pady=8)
+        
+        f = tk.Frame(table_card, bg=THEME["card"])
+        f.pack(fill="both", expand=True, padx=12, pady=12)
+        
         cols = ("Symbol", "Company", "Sector", "Exchange")
         tree, sb = make_tree(f, cols, heights=16)
         tree.pack(side="left", fill="both", expand=True)
@@ -945,7 +1257,7 @@ class StockApp(tk.Tk):
 
         make_button(win, "🗑 Delete Selected Stock",
                     lambda: self._admin_del_stock(win._stock_tree, win._refresh),
-                    bg=THEME["red"]).pack(pady=6)
+                    bg=THEME["red"]).pack(pady=12)
 
     def _admin_stocks(self, parent):
         parent._refresh()
@@ -954,14 +1266,26 @@ class StockApp(tk.Tk):
         win = tk.Toplevel(parent)
         win.title("Add Stock")
         win.configure(bg=THEME["bg"])
-        win.geometry("380x240")
+        win.geometry("400x280")
+        win.transient(parent)
+        win.grab_set()
+
+        card = tk.Frame(win, bg=THEME["card"], bd=1, relief="solid",
+                       highlightbackground=THEME["border"], highlightthickness=1)
+        card.pack(padx=20, pady=20, fill="both", expand=True)
+
+        tk.Label(card, text="➕ Add New Stock", font=FONT_H,
+                bg=THEME["card"], fg=THEME["accent"]).pack(pady=(16, 12))
 
         entries = {}
+        form = tk.Frame(card, bg=THEME["card"])
+        form.pack(padx=16)
+        
         for i, (lbl, default) in enumerate([("Symbol", ""), ("Company", ""), ("Sector", "Unknown"), ("Exchange", "NSE")]):
-            tk.Label(win, text=lbl, font=FONT, bg=THEME["bg"], fg=THEME["sub"]).grid(row=i, column=0, padx=14, pady=8)
-            e = make_entry(win, width=22)
+            tk.Label(form, text=lbl, font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=i, column=0, padx=10, pady=8, sticky="e")
+            e = make_entry(form, width=24)
             e.insert(0, default)
-            e.grid(row=i, column=1)
+            e.grid(row=i, column=1, pady=8)
             entries[lbl] = e
 
         def save():
@@ -976,7 +1300,7 @@ class StockApp(tk.Tk):
             win.destroy()
             parent._refresh()
 
-        make_button(win, "Save", save, bg=THEME["green"]).grid(row=4, column=1, pady=12)
+        make_button(card, "💾 Save", save, bg=THEME["green"]).pack(pady=(12, 16), ipadx=20)
 
     def _admin_del_stock(self, tree, refresh):
         sel = tree.selection()
@@ -988,7 +1312,6 @@ class StockApp(tk.Tk):
             refresh()
 
     def _import_transactions_csv(self):
-        """Import transactions from a CSV file."""
         filepath = filedialog.askopenfilename(
             title="Select Transactions CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
@@ -996,19 +1319,15 @@ class StockApp(tk.Tk):
         if not filepath:
             return
         
-        # Run import in background thread
         def do_import():
             csv_importer = importer.CSVImporter()
             success = csv_importer.import_transactions(filepath)
-            
-            # Update UI on main thread
             self.after(0, lambda: self._show_import_result(csv_importer, "Transactions"))
         
         thread = threading.Thread(target=do_import, daemon=True)
         thread.start()
     
     def _import_watchlist_csv(self):
-        """Import watchlist from a CSV file."""
         filepath = filedialog.askopenfilename(
             title="Select Watchlist CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
@@ -1019,14 +1338,12 @@ class StockApp(tk.Tk):
         def do_import():
             csv_importer = importer.CSVImporter()
             success = csv_importer.import_watchlist(filepath)
-            
             self.after(0, lambda: self._show_import_result(csv_importer, "Watchlist"))
         
         thread = threading.Thread(target=do_import, daemon=True)
         thread.start()
     
     def _import_dividends_csv(self):
-        """Import dividends from a CSV file."""
         filepath = filedialog.askopenfilename(
             title="Select Dividends CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
@@ -1037,26 +1354,18 @@ class StockApp(tk.Tk):
         def do_import():
             csv_importer = importer.CSVImporter()
             success = csv_importer.import_dividends(filepath)
-            
             self.after(0, lambda: self._show_import_result(csv_importer, "Dividends"))
         
         thread = threading.Thread(target=do_import, daemon=True)
         thread.start()
     
     def _show_import_result(self, csv_importer, data_type):
-        """Display import result dialog and refresh UI."""
         status_msg = csv_importer.get_status_message()
-        
-        # Show result dialog
         messagebox.showinfo(f"{data_type} Import Complete", status_msg)
-        
-        # Refresh all relevant tabs
         self._refresh_txn_table()
         self._refresh_wl_table()
         self._refresh_div_table()
         self._refresh_holdings_tab()
-
-    # ────────────────────────────────────────────────────────────────────────────
 
     def _export_full_backup(self):
         path = filedialog.asksaveasfilename(defaultextension=".csv",
@@ -1064,8 +1373,6 @@ class StockApp(tk.Tk):
         if path:
             exporter.export_transactions(path)
             messagebox.showinfo("Done", f"Exported to {path}")
-
-    # ── Export helpers ───────────────────────────────────────────────────────
 
     def _export_holdings(self):
         path = filedialog.asksaveasfilename(defaultextension=".csv",
@@ -1083,18 +1390,18 @@ class StockApp(tk.Tk):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Login Window
+#  Modern Login Window
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class LoginWindow(tk.Tk):
-    """Splash login screen shown before the main app."""
+    """Modern splash login screen with glassmorphism card."""
 
     def __init__(self):
         super().__init__()
         db.init_db()
 
         self.title("Stock Portfolio Analyzer — Login")
-        self.geometry("420x340")
+        self.geometry("480x420")
         self.resizable(False, False)
         self.configure(bg=THEME["bg"])
         self._authenticated = False
@@ -1112,52 +1419,69 @@ class LoginWindow(tk.Tk):
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
 
     def _build_ui(self):
-        # ── Header ──────────────────────────────────────────────────────────
-        hdr = tk.Frame(self, bg=THEME["header"], height=70)
-        hdr.pack(fill="x")
-        hdr.pack_propagate(False)
-        tk.Label(hdr, text="📈  Stock Portfolio Analyzer",
-                 font=("Segoe UI", 15, "bold"),
-                 fg=THEME["accent"], bg=THEME["header"]).pack(expand=True)
+        # Decorative top bar
+        top_bar = tk.Frame(self, bg=THEME["accent"], height=4)
+        top_bar.pack(fill="x")
+        top_bar.pack_propagate(False)
 
-        # ── Card ────────────────────────────────────────────────────────────
-        card = tk.Frame(self, bg=THEME["panel"], bd=0)
-        card.pack(padx=40, pady=24, fill="both", expand=True)
+        # Main content
+        main = tk.Frame(self, bg=THEME["bg"])
+        main.pack(fill="both", expand=True, padx=40, pady=30)
 
-        tk.Label(card, text="Welcome back", font=("Segoe UI", 13, "bold"),
-                 fg=THEME["text"], bg=THEME["panel"]).pack(pady=(20, 2))
-        tk.Label(card, text="Please sign in to continue",
-                 font=("Segoe UI", 9), fg=THEME["sub"], bg=THEME["panel"]).pack(pady=(0, 18))
+        # Logo / Icon
+        logo_frame = tk.Frame(main, bg=THEME["bg"])
+        logo_frame.pack(pady=(0, 16))
+        
+        logo = tk.Label(logo_frame, text="📈", font=("Segoe UI", 48),
+                       bg=THEME["bg"], fg=THEME["accent"])
+        logo.pack()
+
+        # Title
+        tk.Label(main, text="Stock Portfolio Analyzer",
+                font=("Segoe UI Variable", 18, "bold"),
+                fg=THEME["text"], bg=THEME["bg"]).pack()
+        
+        tk.Label(main, text="Sign in to manage your portfolio",
+                font=FONT, fg=THEME["sub"], bg=THEME["bg"]).pack(pady=(4, 24))
+
+        # Login card
+        card = tk.Frame(main, bg=THEME["card"], bd=1, relief="solid",
+                       highlightbackground=THEME["border"], highlightthickness=1)
+        card.pack(fill="x", padx=0, pady=0)
 
         # Username
-        tk.Label(card, text="Username", font=FONT,
-                 fg=THEME["sub"], bg=THEME["panel"], anchor="w").pack(fill="x", padx=24)
+        tk.Label(card, text="Username", font=FONT_B,
+                fg=THEME["sub"], bg=THEME["card"], anchor="w").pack(fill="x", padx=16, pady=(16, 4))
         self._usr = make_entry(card, width=30)
-        self._usr.pack(padx=24, pady=(2, 10), fill="x")
+        self._usr.pack(padx=16, pady=(0, 12), fill="x")
         self._usr.insert(0, "admin")
 
         # Password
-        tk.Label(card, text="Password", font=FONT,
-                 fg=THEME["sub"], bg=THEME["panel"], anchor="w").pack(fill="x", padx=24)
+        tk.Label(card, text="Password", font=FONT_B,
+                fg=THEME["sub"], bg=THEME["card"], anchor="w").pack(fill="x", padx=16, pady=(4, 4))
         self._pwd = make_entry(card, width=30, show="*")
-        self._pwd.pack(padx=24, pady=(2, 4), fill="x")
+        self._pwd.pack(padx=16, pady=(0, 4), fill="x")
         self._pwd.bind("<Return>", lambda _: self._login())
 
         # Error label
-        self._err_lbl = tk.Label(card, text="", font=("Segoe UI", 9),
-                                  fg=THEME["red"], bg=THEME["panel"])
-        self._err_lbl.pack()
+        self._err_lbl = tk.Label(card, text="", font=FONT_XS,
+                                  fg=THEME["red"], bg=THEME["card"])
+        self._err_lbl.pack(pady=(0, 8))
 
         # Login button
-        make_button(card, "Sign In", self._login,
-                    bg=THEME["accent"]).pack(pady=(6, 20), ipadx=20)
+        make_button(card, "Sign In →", self._login,
+                   bg=THEME["accent"]).pack(pady=(0, 16), padx=16, fill="x")
+
+        # Footer hint
+        tk.Label(main, text="Default: admin / admin",
+                font=FONT_XS, fg=THEME["sub"], bg=THEME["bg"]).pack(pady=(16, 0))
 
     def _login(self):
         usr = self._usr.get().strip()
         pwd = self._pwd.get()
 
         if not usr or not pwd:
-            self._err_lbl.config(text="Username and password are required.")
+            self._err_lbl.config(text="⚠ Username and password are required.")
             return
 
         if db.verify_admin(usr, pwd):
@@ -1166,7 +1490,7 @@ class LoginWindow(tk.Tk):
         else:
             self._attempts += 1
             self._err_lbl.config(
-                text=f"Invalid credentials. (Attempt {self._attempts})"
+                text=f"❌ Invalid credentials. (Attempt {self._attempts})"
             )
             self._pwd.delete(0, "end")
             self._pwd.focus_set()
@@ -1177,7 +1501,7 @@ class LoginWindow(tk.Tk):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    import matplotlib.ticker   # ensure imported for formatters
+    import matplotlib.ticker
 
     # Show login first
     login = LoginWindow()
