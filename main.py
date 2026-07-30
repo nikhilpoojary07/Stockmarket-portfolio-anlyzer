@@ -139,10 +139,14 @@ def make_button(parent, text, command, bg=None, fg=None, hover_bg=None, **kw):
                   relief="flat", padx=14, pady=6, cursor="hand2",
                   bd=0, **kw)
     
-    def on_enter(e, btn=b, hbg=hover_bg):
-        btn.config(bg=hbg)
-    def on_leave(e, btn=b, obg=bg):
-        btn.config(bg=obg)
+    # Store theme-specific colors on the widget itself to allow updating them dynamically
+    b._normal_bg = bg
+    b._hover_bg = hover_bg
+    
+    def on_enter(e, btn=b):
+        btn.config(bg=getattr(btn, "_hover_bg", btn.cget("activebackground")))
+    def on_leave(e, btn=b):
+        btn.config(bg=getattr(btn, "_normal_bg", btn.cget("bg")))
     
     b.bind("<Enter>", on_enter)
     b.bind("<Leave>", on_leave)
@@ -250,7 +254,8 @@ class SidebarNav(tk.Frame):
         tk.Frame(self, bg=THEME["header"]).pack(expand=True, fill="both")
         
         # Theme toggle at bottom
-        theme_btn = tk.Button(self, text="🌓  Toggle Theme", command=self._toggle_theme,
+        theme_btn = tk.Button(self, text="🌓  Toggle Theme",
+                             command=self.commands.get("toggle_theme", self._toggle_theme),
                              bg=THEME["header"], fg=THEME["sub"], font=FONT,
                              relief="flat", bd=0, cursor="hand2",
                              activebackground=THEME["hover"], activeforeground=THEME["text"])
@@ -381,6 +386,10 @@ class StockApp(tk.Tk):
         self._holdings:    dict = {}
         self._refresh_lock = threading.Lock()
         self._current_tab = "holdings"
+        
+        # Theme toggle states
+        self._active_analytics_chart = "pie"
+        self._last_pred_result = None
 
         self._build_ui()
         self.after(500, self._refresh_holdings_tab)
@@ -400,6 +409,7 @@ class StockApp(tk.Tk):
             "dividends": lambda: self._switch_tab("dividends"),
             "analytics": lambda: self._switch_tab("analytics"),
             "prediction": lambda: self._switch_tab("prediction"),
+            "toggle_theme": self._toggle_theme,
             "refresh": self._fetch_prices_thread,
         })
         self._sidebar.pack(side="left", fill="y")
@@ -491,6 +501,141 @@ class StockApp(tk.Tk):
         }
         if name in refresh_methods:
             refresh_methods[name]()
+
+    # ── Theme Toggle & Instant UI Update ─────────────────────────────────────
+
+    def _toggle_theme(self):
+        global THEME
+        old_theme = THEME
+        new_theme = LIGHT if THEME == DARK else DARK
+        THEME = new_theme
+
+        # 1. Update style configurations for ttk.Treeview and ttk.Scrollbar
+        self._update_styles()
+
+        # 2. Update standard Tkinter widgets recursively starting from self (root window)
+        self._update_widget_theme(self, old_theme, new_theme)
+
+        # 3. Update the active button status inside the sidebar navigation
+        self._sidebar.set_active(self._sidebar._active_idx)
+
+        # 4. Force refresh the summary cards values using the new theme colors
+        self._update_summary()
+
+        # 5. Redraw the active chart/predict model dynamically if open
+        if self._current_tab == "analytics":
+            if self._active_analytics_chart == "pie":
+                self._chart_pie()
+            elif self._active_analytics_chart == "pnl_bar":
+                self._chart_pnl_bar()
+            elif self._active_analytics_chart == "nav":
+                self._chart_nav()
+            elif self._active_analytics_chart == "sector":
+                self._chart_sector()
+        elif self._current_tab == "prediction":
+            if self._last_pred_result is not None:
+                self._show_prediction(self._last_pred_result)
+
+    def _update_styles(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure("Custom.Treeview",
+                        background=THEME["card"],
+                        foreground=THEME["text"],
+                        fieldbackground=THEME["card"],
+                        rowheight=32,
+                        font=FONT,
+                        borderwidth=0)
+        style.configure("Custom.Treeview.Heading",
+                        background=THEME["header"],
+                        foreground=THEME["text"],
+                        font=FONT_B,
+                        relief="flat",
+                        padding=(10, 6))
+        style.map("Custom.Treeview",
+                  background=[("selected", THEME["accent"])],
+                  foreground=[("selected", "#ffffff")])
+        style.map("Custom.Treeview.Heading",
+                  background=[("active", THEME["hover"])])
+        
+        style.configure("Custom.Vertical.TScrollbar",
+                        background=THEME["card"],
+                        troughcolor=THEME["bg"],
+                        bordercolor=THEME["border"],
+                        arrowcolor=THEME["sub"],
+                        width=12)
+
+    def _update_widget_theme(self, widget, old_theme, new_theme):
+        color_map = {}
+        for k in old_theme:
+            old_val = old_theme[k].lower()
+            new_val = new_theme[k].lower()
+            if old_val != new_val:
+                color_map[old_val] = new_val
+
+        def traverse(w):
+            # Update standard Tk configurations
+            for opt in ["bg", "background", "fg", "foreground", 
+                        "activebackground", "activeforeground",
+                        "disabledforeground", "insertbackground",
+                        "highlightcolor", "highlightbackground",
+                        "selectbackground", "selectforeground"]:
+                try:
+                    curr = w.cget(opt)
+                    if curr:
+                        curr_norm = str(curr).strip().lower()
+                        if curr_norm in color_map:
+                            w.configure(**{opt: color_map[curr_norm]})
+                except tk.TclError:
+                    pass
+
+            # Update Canvas drawing elements (such as the status dot oval)
+            if isinstance(w, tk.Canvas):
+                for item in w.find_all():
+                    for opt in ["fill", "outline"]:
+                        try:
+                            curr = w.itemcget(item, opt)
+                            if curr:
+                                curr_norm = str(curr).strip().lower()
+                                if curr_norm in color_map:
+                                    w.itemconfig(item, **{opt: color_map[curr_norm]})
+                        except tk.TclError:
+                            pass
+            
+            # Update Treeview tag configurations
+            if isinstance(w, ttk.Treeview):
+                for tag in ["profit", "loss", "buy", "sell", "near", "far"]:
+                    try:
+                        curr_fg = w.tag_cget(tag, "foreground")
+                        if curr_fg:
+                            curr_fg_norm = str(curr_fg).strip().lower()
+                            if curr_fg_norm in color_map:
+                                w.tag_configure(tag, foreground=color_map[curr_fg_norm])
+                        
+                        curr_bg = w.tag_cget(tag, "background")
+                        if curr_bg:
+                            curr_bg_norm = str(curr_bg).strip().lower()
+                            if curr_bg_norm in color_map:
+                                w.tag_configure(tag, background=color_map[curr_bg_norm])
+                    except tk.TclError:
+                        pass
+
+            # Update custom normal and hover bg configurations on styled buttons
+            if hasattr(w, "_normal_bg"):
+                norm = str(w._normal_bg).strip().lower()
+                if norm in color_map:
+                    w._normal_bg = color_map[norm]
+            if hasattr(w, "_hover_bg"):
+                hvr = str(w._hover_bg).strip().lower()
+                if hvr in color_map:
+                    w._hover_bg = color_map[hvr]
+
+            # Recurse through children
+            for child in w.winfo_children():
+                traverse(child)
+
+        traverse(widget)
 
     # ── Summary strip update ─────────────────────────────────────────────────
 
@@ -872,6 +1017,7 @@ class StockApp(tk.Tk):
         plt.close(fig)
 
     def _chart_pie(self):
+        self._active_analytics_chart = "pie"
         h = self._holdings
         cache = self._price_cache
         if not h:
@@ -904,6 +1050,7 @@ class StockApp(tk.Tk):
         self._embed_fig(fig)
 
     def _chart_pnl_bar(self):
+        self._active_analytics_chart = "pnl_bar"
         h = self._holdings
         cache = self._price_cache
         if not h:
@@ -929,6 +1076,7 @@ class StockApp(tk.Tk):
         self._embed_fig(fig)
 
     def _chart_nav(self):
+        self._active_analytics_chart = "nav"
         txns = db.get_transactions()
         if not txns:
             messagebox.showinfo("No Data", "No transactions found.")
@@ -961,6 +1109,7 @@ class StockApp(tk.Tk):
         self._embed_fig(fig)
 
     def _chart_sector(self):
+        self._active_analytics_chart = "sector"
         stocks = {s[0]: s[2] for s in db.get_all_stocks()}
         h = self._holdings
         cache = self._price_cache
@@ -1082,6 +1231,7 @@ class StockApp(tk.Tk):
             self._pred_status.config(text=f"❌ Error: {r['error']}")
             return
 
+        self._last_pred_result = r
         sym  = r["symbol"]
         info = self._pred_info_labels
         dir_color = THEME["green"] if r["direction"] == "UP" else (
