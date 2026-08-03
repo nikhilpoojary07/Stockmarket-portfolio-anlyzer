@@ -1412,11 +1412,12 @@ class StockApp(tk.Tk):
     def _admin_stocks(self, parent):
         parent._refresh()
 
-    def _admin_add_stock(self, parent):
+ 
+         def _admin_add_stock(self, parent):
         win = tk.Toplevel(parent)
         win.title("Add Stock")
         win.configure(bg=THEME["bg"])
-        win.geometry("400x280")
+        win.geometry("450x330")
         win.transient(parent)
         win.grab_set()
 
@@ -1431,12 +1432,80 @@ class StockApp(tk.Tk):
         form = tk.Frame(card, bg=THEME["card"])
         form.pack(padx=16)
         
-        for i, (lbl, default) in enumerate([("Symbol", ""), ("Company", ""), ("Sector", "Unknown"), ("Exchange", "NSE")]):
-            tk.Label(form, text=lbl, font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=i, column=0, padx=10, pady=8, sticky="e")
-            e = make_entry(form, width=24)
-            e.insert(0, default)
-            e.grid(row=i, column=1, pady=8)
-            entries[lbl] = e
+        # Row 0: Symbol with Fetch Button
+        tk.Label(form, text="Symbol", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=0, column=0, padx=10, pady=8, sticky="e")
+        sym_frame = tk.Frame(form, bg=THEME["card"])
+        sym_frame.grid(row=0, column=1, pady=8, sticky="w")
+        
+        e_sym = make_entry(sym_frame, width=14)
+        e_sym.pack(side="left", padx=(0, 6))
+        entries["Symbol"] = e_sym
+
+        # Row 1: Company
+        tk.Label(form, text="Company", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=1, column=0, padx=10, pady=8, sticky="e")
+        e_comp = make_entry(form, width=24)
+        e_comp.grid(row=1, column=1, pady=8, sticky="w")
+        entries["Company"] = e_comp
+
+        # Row 2: Sector
+        tk.Label(form, text="Sector", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=2, column=0, padx=10, pady=8, sticky="e")
+        e_sec = make_entry(form, width=24)
+        e_sec.insert(0, "Unknown")
+        e_sec.grid(row=2, column=1, pady=8, sticky="w")
+        entries["Sector"] = e_sec
+
+        # Row 3: Exchange
+        tk.Label(form, text="Exchange", font=FONT, bg=THEME["card"], fg=THEME["sub"]).grid(row=3, column=0, padx=10, pady=8, sticky="e")
+        e_exc = make_entry(form, width=24)
+        e_exc.insert(0, "NSE")
+        e_exc.grid(row=3, column=1, pady=8, sticky="w")
+        entries["Exchange"] = e_exc
+
+        def auto_fill():
+            sym = e_sym.get().strip().upper()
+            if not sym:
+                messagebox.showerror("Error", "Please enter a symbol first.", parent=win)
+                return
+            
+            btn_fetch.config(text="Fetching...", state="disabled")
+            
+            def worker():
+                info = price_fetcher.fetch_info(sym)
+                
+                def update_ui():
+                    btn_fetch.config(text="🔍 Fetch", state="normal")
+                    if info.get("error"):
+                        messagebox.showerror("Error", f"Could not fetch details: {info['error']}", parent=win)
+                    else:
+                        e_comp.delete(0, tk.END)
+                        e_comp.insert(0, info.get("company", ""))
+                        
+                        e_sec.delete(0, tk.END)
+                        e_sec.insert(0, info.get("sector", "Unknown"))
+                        
+                        # Determine exchange based on suffix or default
+                        exc_val = "NSE"
+                        if "." in sym:
+                            suffix = sym.split(".")[-1]
+                            if suffix == "NS":
+                                exc_val = "NSE"
+                            elif suffix == "BO":
+                                exc_val = "BSE"
+                            else:
+                                exc_val = suffix
+                        
+                        e_exc.delete(0, tk.END)
+                        e_exc.insert(0, exc_val)
+                        
+                        messagebox.showinfo("Success", f"Retrieved details for {sym}!", parent=win)
+                
+                win.after(0, update_ui)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        btn_fetch = make_button(sym_frame, "🔍 Fetch", auto_fill, bg=THEME["accent"])
+        btn_fetch.config(font=FONT_XS, padx=6, pady=2)
+        btn_fetch.pack(side="left")
 
         def save():
             sym  = entries["Symbol"].get().strip().upper()
@@ -1450,32 +1519,7 @@ class StockApp(tk.Tk):
             win.destroy()
             parent._refresh()
 
-        make_button(card, "💾 Save", save, bg=THEME["green"]).pack(pady=(12, 16), ipadx=20)
-
-    def _admin_del_stock(self, tree, refresh):
-        sel = tree.selection()
-        if not sel:
-            return
-        sym = tree.item(sel[0])["values"][0]
-        if messagebox.askyesno("Confirm", f"Delete {sym} and all related data?"):
-            db.delete_stock(sym)
-            refresh()
-
-    def _import_transactions_csv(self):
-        filepath = filedialog.askopenfilename(
-            title="Select Transactions CSV",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        if not filepath:
-            return
-        
-        def do_import():
-            csv_importer = importer.CSVImporter()
-            success = csv_importer.import_transactions(filepath)
-            self.after(0, lambda: self._show_import_result(csv_importer, "Transactions"))
-        
-        thread = threading.Thread(target=do_import, daemon=True)
-        thread.start()
+        make_button(card, "💾 Save", save, bg=THEME["green"]).pack(pady=(12, 16), ipadx=20) 
     
     def _import_watchlist_csv(self):
         filepath = filedialog.askopenfilename(
