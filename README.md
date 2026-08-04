@@ -4,7 +4,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![Tkinter](https://img.shields.io/badge/GUI-Tkinter-green)
-![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite)
+![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite
 ![Machine Learning](https://img.shields.io/badge/ML-scikit--learn-F7931E?logo=scikitlearn)
 ![Matplotlib](https://img.shields.io/badge/Charts-Matplotlib-blue)
 ![License](https://img.shields.io/badge/License-MIT-red)
