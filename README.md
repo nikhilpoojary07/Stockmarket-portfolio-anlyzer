@@ -9,13 +9,12 @@
 ![Matplotlib](https://img.shields.io/badge/Charts-Matplotlib-blue)
 ![License](https://img.shields.io/badge/License-MIT-red)
 
-### A Python desktop application for managing stock portfolios, tracking live market prices, visualizing investment performance, and forecasting future prices using Machine Learning.
+A Python desktop application for managing stock portfolios, tracking live market prices, visualizing investment performance, and forecasting future prices using Machine Learning.
 
 </div>
 
 ---
-
-# 📖 Overview
+ Overview
 
 **Stock Portfolio Analyzer** is a desktop-based investment management system developed using **Python** and **Tkinter**. It helps users organize stock holdings, monitor portfolio performance, analyze investments through interactive charts, and predict future stock prices using Machine Learning.
 
