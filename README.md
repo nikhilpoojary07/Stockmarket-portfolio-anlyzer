@@ -1,4 +1,4 @@
-# 📈 Stock Portfolio Analyzer
+ Stock Portfolio Analyzer
 
 <div align="center">
 
