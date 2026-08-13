@@ -1,19 +1,5 @@
 """
-main.py — Stock Portfolio Analyzer
-Main Tkinter Application Entry Point — MODERN UI EDITION v2.0
-
-Tech Stack: Python 3.x | Tkinter + ttk | SQLite3 | Matplotlib | yfinance | scikit-learn
-
-UI Improvements:
-- Modern glassmorphism sidebar navigation
-- Summary cards with gradient-like styling
-- Card-based layout for all tabs
-- Animated hover effects on buttons
-- Enhanced charts with modern color palette
-- Improved typography hierarchy
-- Better spacing and visual rhythm
-- Refined login screen with centered card layout
-"""
+m
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
