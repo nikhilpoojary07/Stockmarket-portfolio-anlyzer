@@ -1,12 +1,9 @@
-"""
-m
-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 import datetime
 import threading
 
-# ── Matplotlib embedded in Tkinter ──────────────────────────────────────────
+
 import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.figure import Figure
@@ -15,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker
 
-# ── Internal modules ─────────────────────────────────────────────────────────
+
 import database as db
 import price_fetcher
 import predictor
