@@ -19,8 +19,7 @@ import predictor
 import exporter
 import importer
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Modern Theme System — Instant Toggle, No Restart
+
 # ═══════════════════════════════════════════════════════════════════════════════
 
 DARK = {
@@ -90,7 +89,6 @@ def today() -> str:
     return datetime.date.today().isoformat()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  Styled widgets — Modern glassmorphism aesthetic
 # ═══════════════════════════════════════════════════════════════════════════════
 
