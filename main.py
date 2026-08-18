@@ -44,7 +44,7 @@ DARK = {
 
 LIGHT = {
     "bg":        "#f8fafc",
-    "panel":     "#ffffff",
+    "panel":     "grey",
     "card":      "#f1f5f9",
     "accent":    "#7c3aed",
     "accent2":   "#8b5cf6",
@@ -150,7 +150,7 @@ def make_tree(parent, columns, heights=15):
                     foreground=THEME["text"],
                     font=FONT_B,
                     relief="flat",
-                    padding=(10, 6))
+                    padding=(11, 7))
     style.map("Custom.Treeview",
               background=[("selected", THEME["accent"])],
               foreground=[("selected", "#ffffff")])
