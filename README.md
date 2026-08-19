@@ -12,7 +12,7 @@
 A Python desktop application for managing stock portfolios, tracking live market prices, visualizing investment performance, and forecasting future prices using Machine Learning.
 
 
- Overview
+
 
 **Stock Portfolio Analyzer** is a desktop-based investment management system developed using **Python** and **Tkinter**. It helps users organize stock holdings, monitor portfolio performance, analyze investments through interactive charts, and predict future stock prices using Machine Learning.
 s
@@ -40,8 +40,7 @@ s
 - Portfolio Summary
 
 ---
-
-## 💹 Live Market Data
+ Live Market Data
 
 Live stock prices are fetched using **Yahoo Finance**.
 
