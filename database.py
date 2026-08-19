@@ -18,7 +18,7 @@ def get_connection():
         conn = sqlite3.connect(DB_PATH, timeout=5.0)
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
-    except sqlite3Error as e:
+    except sqlite3.Error as e:
         print(f"Database connection error: {e}")
         raise
 
