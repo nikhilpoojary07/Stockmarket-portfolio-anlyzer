@@ -9,8 +9,7 @@
 ![Matplotlib](https://img.shields.io/badge/Charts-Matplotlib-blue)
 ![License](https://img.shields.io/badge/License-MIT-red)
 
-A Python desktop application for managing stock portfolios, tracking live market prices, visualizing investment performance, and forecasting future prices using Machine Learning.
-
+A
 
 
 
